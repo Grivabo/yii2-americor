@@ -30,7 +30,7 @@
         if ($historySearch->hasErrors()) {
             throw new InvalidArgumentException('Ошибка параметров фильтра.');
         }
-        (new HistoryEventsCsvExportMySql($activeDataProvider, $useActiveRecord))->send(2000);;
+        (new HistoryEventsCsvExportMySql($activeDataProvider, $useActiveRecord))->send(2000);
     }
 ```
 

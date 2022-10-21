@@ -1,7 +1,11 @@
-<?php
+<?php /** @noinspection ALL */
 
 namespace app\models;
 
+use app\components\historyEvents\base\ChangeAttributeValueEventHistory;
+use app\components\historyEvents\HistoryEventInterface;
+use app\models\enums\HistoryEventsEnum;
+use app\models\interfaces\HistoryEventTargetInterface;
 use Yii;
 use yii\db\ActiveQuery;
 use yii\db\ActiveRecord;
@@ -31,7 +35,7 @@ use yii\db\ActiveRecord;
  * @property Customer $customer
  * @property User $user
  */
-class Call extends ActiveRecord
+class Call extends ActiveRecord implements HistoryEventTargetInterface
 {
     const STATUS_NO_ANSWERED = 0;
     const STATUS_ANSWERED = 1;
@@ -178,5 +182,32 @@ class Call extends ActiveRecord
             return $this->duration >= 3600 ? gmdate("H:i:s", $this->duration) : gmdate("i:s", $this->duration);
         }
         return '00:00';
+    }
+
+    /**
+     * @return bool
+     */
+    public function isAnswered(): bool
+    {
+        return $this->status === self::STATUS_ANSWERED;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public static function createEventHistory(History $history): HistoryEventInterface
+    {
+        switch ($history->event) {
+            case HistoryEventsEnum::EVENT_INCOMING_CALL:
+                return $history->createEventHistoryBase(
+                    Yii::t('app', 'Incoming call')
+                );
+            case HistoryEventsEnum::EVENT_OUTGOING_CALL:
+                return $history->createEventHistoryBase(
+                    Yii::t('app', 'Outgoing call')
+                );
+            default:
+                throw new EventNotFoundException();
+        }
     }
 }

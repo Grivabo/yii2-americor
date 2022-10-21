@@ -2,9 +2,15 @@
 
 namespace app\models;
 
+use app\components\historyEvents\ChangeAttributeValueEventHistory;
+use app\components\historyEvents\EventHistoryBase;
+use app\components\historyEvents\HistoryEventInterface;
+use app\models\exceptions\HistoryEventNotFoundException;
+use app\models\interfaces\HistoryEventTargetInterface;
 use app\models\traits\ObjectNameTrait;
 use Yii;
 use yii\db\ActiveQuery;
+use yii\db\ActiveQueryInterface;
 use yii\db\ActiveRecord;
 
 /**
@@ -20,34 +26,22 @@ use yii\db\ActiveRecord;
  * @property string $detail
  * @property integer $user_id
  *
- * @property string $eventText
- *
  * @property Customer $customer
  * @property User $user
  *
- * @property Task $task
- * @property Sms $sms
- * @property Call $call
+ * @property Task|null $task
+ * @property Sms|null $sms
+ * @property Call|null $call
+ * @property Fax|null $fax
  */
 class History extends ActiveRecord
 {
     use ObjectNameTrait;
 
-    const EVENT_CREATED_TASK = 'created_task';
-    const EVENT_UPDATED_TASK = 'updated_task';
-    const EVENT_COMPLETED_TASK = 'completed_task';
-
-    const EVENT_INCOMING_SMS = 'incoming_sms';
-    const EVENT_OUTGOING_SMS = 'outgoing_sms';
-
-    const EVENT_INCOMING_CALL = 'incoming_call';
-    const EVENT_OUTGOING_CALL = 'outgoing_call';
-
-    const EVENT_INCOMING_FAX = 'incoming_fax';
-    const EVENT_OUTGOING_FAX = 'outgoing_fax';
-
-    const EVENT_CUSTOMER_CHANGE_TYPE = 'customer_change_type';
-    const EVENT_CUSTOMER_CHANGE_QUALITY = 'customer_change_quality';
+    /**
+     * @var HistoryEventInterface
+     */
+    private $historyEvent;
 
     /**
      * @inheritdoc
@@ -108,46 +102,66 @@ class History extends ActiveRecord
     }
 
     /**
-     * @return array
+     * @return ActiveQueryInterface|ActiveQuery|null
      */
-    public static function getEventTexts()
+    public function getHistoryEventTargetRelation()
     {
-        return [
-            self::EVENT_CREATED_TASK => Yii::t('app', 'Task created'),
-            self::EVENT_UPDATED_TASK => Yii::t('app', 'Task updated'),
-            self::EVENT_COMPLETED_TASK => Yii::t('app', 'Task completed'),
+        $relation = $this->getRelation($this->object, false);
 
-            self::EVENT_INCOMING_SMS => Yii::t('app', 'Incoming message'),
-            self::EVENT_OUTGOING_SMS => Yii::t('app', 'Outgoing message'),
+        // Для некоторых событий $this->object содержит не имя таблицы. Но по значению можно получить имя таблицы.
+        if (!$relation) {
+            $relationName = null;
 
-            self::EVENT_CUSTOMER_CHANGE_TYPE => Yii::t('app', 'Type changed'),
-            self::EVENT_CUSTOMER_CHANGE_QUALITY => Yii::t('app', 'Property changed'),
+            $map = [
+                'customer' => Customer::getTypeTexts(),
+                'call' => array_flip(['call_ytel']),
+            ];
 
-            self::EVENT_OUTGOING_CALL => Yii::t('app', 'Outgoing call'),
-            self::EVENT_INCOMING_CALL => Yii::t('app', 'Incoming call'),
-
-            self::EVENT_INCOMING_FAX => Yii::t('app', 'Incoming fax'),
-            self::EVENT_OUTGOING_FAX => Yii::t('app', 'Outgoing fax'),
-        ];
+            $relationTableName = $this->object;
+            foreach ($map as $new => $check) {
+                if (array_key_exists($relationTableName, $check)) {
+                    $relationName = $new;
+                    break;
+                }
+            }
+            $relation = $relationName ? $this->getRelation($relationName, false) : null;
+        }
+        return $relation;
     }
 
     /**
-     * @param $event
-     * @return mixed
+     * @return string|null
      */
-    public static function getEventTextByEvent($event)
+    public function getHistoryEventTargetClass(): ?string
     {
-        return static::getEventTexts()[$event] ?? $event;
+        $relation = $this->getHistoryEventTargetRelation();
+        return $relation->modelClass ?? null;
     }
 
     /**
-     * @return mixed|string
+     * @return HistoryEventTargetInterface|null
      */
-    public function getEventText()
+    public function getHistoryEventTarget(): ?HistoryEventTargetInterface
     {
-        return static::getEventTextByEvent($this->event);
+        $relation = $this->getHistoryEventTargetRelation();
+        return $relation ? $relation->one() : null;
     }
 
+    /**
+     * Кэширует результат.
+     * @return HistoryEventInterface
+     * @throws HistoryEventNotFoundException
+     */
+    public function getHistoryEvent(): HistoryEventInterface
+    {
+        if ($this->historyEvent) {
+            return $this->historyEvent;
+        }
+
+        /** @var HistoryEventTargetInterface $historyEventTargetClass */
+        $historyEventTargetClass = $this->getHistoryEventTargetClass();
+        return $this->historyEvent = $historyEventTargetClass::createEventHistory($this);
+    }
 
     /**
      * @param $attribute
@@ -187,5 +201,36 @@ class History extends ActiveRecord
     {
         $detail = json_decode($this->detail);
         return isset($detail->data->{$attribute}) ? $detail->data->{$attribute} : null;
+    }
+
+    /**
+     * Создающий метод.
+     * @param string $eventText
+     * @return EventHistoryBase
+     */
+    public function createEventHistoryBase(string $eventText): EventHistoryBase
+    {
+        return new EventHistoryBase(
+            $this,
+            $eventText
+        );
+    }
+
+    /**
+     * Создающий метод.
+     * @param string $eventText
+     * @param string $attribute
+     * @return EventHistoryBase
+     */
+    public function createChangeAttributeValueEventHistory(
+        string $eventText,
+        string $attribute
+    ): EventHistoryBase
+    {
+        return new ChangeAttributeValueEventHistory(
+            $this,
+            $eventText,
+            $attribute
+        );
     }
 }

@@ -2,6 +2,10 @@
 
 namespace app\models;
 
+use app\components\historyEvents\HistoryEventInterface;
+use app\models\enums\HistoryEventsEnum;
+use app\models\exceptions\HistoryEventNotFoundException;
+use app\models\interfaces\HistoryEventTargetInterface;
 use Yii;
 use yii\db\ActiveQuery;
 use yii\db\ActiveRecord;
@@ -33,7 +37,7 @@ use yii\db\ActiveRecord;
  * @property string $isInbox
  * @property string $statusText
  */
-class Task extends ActiveRecord
+class Task extends ActiveRecord implements HistoryEventTargetInterface
 {
     const STATUS_NEW = 0;
     const STATUS_DONE = 1;
@@ -165,5 +169,29 @@ class Task extends ActiveRecord
     public function getIsDone()
     {
         return $this->status == self::STATUS_DONE;
+    }
+
+    /**
+     * @inheritDoc
+     * @throws HistoryEventNotFoundException
+     */
+    public static function createEventHistory(History $history): HistoryEventInterface
+    {
+        switch ($history->event) {
+            case HistoryEventsEnum::EVENT_CREATED_TASK:
+                return $history->createEventHistoryBase(
+                    Yii::t('app', 'Task created')
+                );
+            case HistoryEventsEnum::EVENT_UPDATED_TASK:
+                return $history->createEventHistoryBase(
+                    Yii::t('app', 'Task updated')
+                );
+            case HistoryEventsEnum::EVENT_COMPLETED_TASK:
+                return $history->createEventHistoryBase(
+                    Yii::t('app', 'Task completed')
+                );
+            default:
+                throw new HistoryEventNotFoundException();
+        }
     }
 }

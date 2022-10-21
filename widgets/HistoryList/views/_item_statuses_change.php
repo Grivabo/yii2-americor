@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 use app\models\History;
 
@@ -9,7 +10,8 @@ use app\models\History;
 ?>
 
     <div class="bg-success ">
-        <?php echo "$model->eventText " .
+        <?php /** @noinspection PhpUnhandledExceptionInspection исключение может быть только из-за ошибки в коде */
+        echo $model->getHistoryEvent()->getEventText() . " " .
             "<span class='badge badge-pill badge-warning'>" . ($oldValue ?? "<i>not set</i>") . "</span>" .
             " &#8594; " .
             "<span class='badge badge-pill badge-success'>" . ($newValue ?? "<i>not set</i>") . "</span>";

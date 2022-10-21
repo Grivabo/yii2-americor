@@ -9,7 +9,8 @@ use yii\widgets\Pjax;
 /* @var $this yii\web\View */
 /* @var $dataProvider ActiveDataProvider */
 /* @var $model HistorySearch */
-/* @var $linkExport string */
+/* @var $linkExportActiveRecord string */
+/* @var $linkExportArray string */
 
 ?>
 
@@ -19,8 +20,16 @@ use yii\widgets\Pjax;
     <div class="panel-body panel-body-selected">
 
         <div class="pull-sm-right">
-            <?php if (!empty($linkExport)) {
-                echo Html::a(Yii::t('app', 'CSV'), $linkExport,
+            <?php if (!empty($linkExportArray)) {
+                echo Html::a(Yii::t('app', 'CSV Array'), $linkExportArray,
+                    [
+                        'class' => 'btn btn-success',
+                        'data-pjax' => 0
+                    ]
+                );
+            } ?>
+            <?php if (!empty($linkExportActiveRecord)) {
+                echo Html::a(Yii::t('app', 'CSV ActiveRecord'), $linkExportActiveRecord,
                     [
                         'class' => 'btn btn-success',
                         'data-pjax' => 0
@@ -34,7 +43,7 @@ use yii\widgets\Pjax;
 
 <?php echo ListView::widget([
     'dataProvider' => $dataProvider,
-    'itemView' => '_item',
+    'itemView' => [$this->context, 'renderItem'],
     'options' => [
         'tag' => 'ul',
         'class' => 'list-group'

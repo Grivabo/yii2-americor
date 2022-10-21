@@ -2,6 +2,10 @@
 
 namespace app\models;
 
+use app\components\historyEvents\HistoryEventInterface;
+use app\models\enums\HistoryEventsEnum;
+use app\models\exceptions\HistoryEventNotFoundException;
+use app\models\interfaces\HistoryEventTargetInterface;
 use Yii;
 use yii\db\ActiveQuery;
 use yii\db\ActiveRecord;
@@ -27,7 +31,7 @@ use yii\db\ActiveRecord;
  * @property Customer $customer
  * @property User $user
  */
-class Sms extends ActiveRecord
+class Sms extends ActiveRecord implements HistoryEventTargetInterface
 {
     const DIRECTION_INCOMING = 0;
     const DIRECTION_OUTGOING = 1;
@@ -168,5 +172,24 @@ class Sms extends ActiveRecord
     public function getDirectionText()
     {
         return self::getDirectionTextByValue($this->direction);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public static function createEventHistory(History $history): HistoryEventInterface
+    {
+        switch ($history->event) {
+            case HistoryEventsEnum::EVENT_INCOMING_SMS:
+                return $history->createEventHistoryBase(
+                    Yii::t('app', 'Incoming sms')
+                );
+            case HistoryEventsEnum::EVENT_OUTGOING_SMS:
+                return $history->createEventHistoryBase(
+                    Yii::t('app', 'Outgoing sms')
+                );
+            default:
+                throw new HistoryEventNotFoundException();
+        }
     }
 }

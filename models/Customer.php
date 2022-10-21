@@ -3,6 +3,12 @@
 namespace app\models;
 
 
+use app\components\historyEvents\HistoryEventInterface;
+use app\models\enums\HistoryEventsEnum;
+use app\models\exceptions\HistoryEventNotFoundException;
+use app\models\interfaces\HistoryEventTargetInterface;
+use app\models\interfaces\TypeTextInterface;
+use app\models\traits\TypeTextTrait;
 use Yii;
 use yii\db\ActiveRecord;
 
@@ -13,8 +19,10 @@ use yii\db\ActiveRecord;
  * @property integer $id
  * @property string $name
  */
-class Customer extends ActiveRecord
+class Customer extends ActiveRecord implements TypeTextInterface, HistoryEventTargetInterface
 {
+    use TypeTextTrait;
+
     const QUALITY_ACTIVE = 'active';
     const QUALITY_REJECTED = 'rejected';
     const QUALITY_COMMUNITY = 'community';
@@ -79,7 +87,7 @@ class Customer extends ActiveRecord
     /**
      * @return array
      */
-    public static function getTypeTexts()
+    public static function getTypeTexts(): array
     {
         return [
             self::TYPE_LEAD => Yii::t('app', 'Lead'),
@@ -95,5 +103,26 @@ class Customer extends ActiveRecord
     public static function getTypeTextByType($type)
     {
         return self::getTypeTexts()[$type] ?? $type;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public static function createEventHistory(History $history): HistoryEventInterface
+    {
+        switch ($history->event) {
+            case HistoryEventsEnum::EVENT_CUSTOMER_CHANGE_TYPE:
+                return $history->createChangeAttributeValueEventHistory(
+                    Yii::t('app', 'Type changed'),
+                    'type'
+                );
+            case HistoryEventsEnum::EVENT_CUSTOMER_CHANGE_QUALITY:
+                return $history->createChangeAttributeValueEventHistory(
+                    Yii::t('app', 'Property changed'),
+                    'quality'
+                );
+            default:
+                throw new HistoryEventNotFoundException();
+        }
     }
 }

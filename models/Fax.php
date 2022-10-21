@@ -2,6 +2,12 @@
 
 namespace app\models;
 
+use app\components\historyEvents\HistoryEventInterface;
+use app\models\enums\HistoryEventsEnum;
+use app\models\exceptions\HistoryEventNotFoundException;
+use app\models\interfaces\HistoryEventTargetInterface;
+use app\models\interfaces\TypeTextInterface;
+use app\models\traits\TypeTextTrait;
 use Yii;
 use yii\db\ActiveQuery;
 use yii\db\ActiveRecord;
@@ -21,8 +27,10 @@ use yii\db\ActiveRecord;
  *
  * @property User $user
  */
-class Fax extends ActiveRecord
+class Fax extends ActiveRecord implements TypeTextInterface, HistoryEventTargetInterface
 {
+    use TypeTextTrait;
+
     const DIRECTION_INCOMING = 0;
     const DIRECTION_OUTGOING = 1;
 
@@ -74,9 +82,9 @@ class Fax extends ActiveRecord
     }
 
     /**
-     * @return array
+     * @inheritDoc
      */
-    public static function getTypeTexts()
+    public static function getTypeTexts(): array
     {
         return [
             self::TYPE_POA_ATC => Yii::t('app', 'POA/ATC'),
@@ -85,11 +93,22 @@ class Fax extends ActiveRecord
     }
 
     /**
-     * @return mixed|string
+     * @inheritDoc
      */
-    public function getTypeText()
+    public static function createEventHistory(History $history): HistoryEventInterface
     {
-        return self::getTypeTexts()[$this->type] ?? $this->type;
+        switch ($history->event) {
+            case HistoryEventsEnum::EVENT_INCOMING_FAX:
+                return $history->createEventHistoryBase(
+                    Yii::t('app', 'Incoming fax')
+                );
+            case HistoryEventsEnum::EVENT_OUTGOING_FAX:
+                return $history->createEventHistoryBase(
+                    Yii::t('app', 'Outgoing fax')
+                );
+            default:
+                throw new HistoryEventNotFoundException();
+        }
     }
 
 }

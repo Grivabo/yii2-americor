@@ -1,13 +1,14 @@
 <?php
+declare(strict_types=1);
 
 use app\models\User;
 use yii\helpers\Html;
 
-/* @var $user User */
+/* @var $user User|null */
 /* @var $body string */
-/* @var $footer string */
+/* @var $content string|null */
+/* @var $footer string|null */
 /* @var $footerDatetime string */
-/* @var $bodyDatetime string */
 /* @var $iconClass string */
 ?>
 <?php echo Html::tag('i', '', ['class' => "icon icon-circle icon-main white $iconClass"]); ?>
